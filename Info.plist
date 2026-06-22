@@ -5,15 +5,15 @@
 	<key>CFBundleExecutable</key>
 	<string>OpenClawMarketRainNative</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.openclaw.market-rain.screensaver.native.objc.v199</string>
+	<string>com.openclaw.market-rain.screensaver.native.objc.v200</string>
 	<key>CFBundleName</key>
-	<string>OpenClaw Market Rain 1.9.9</string>
+	<string>OpenClaw Market Rain 2.0.0</string>
 	<key>CFBundlePackageType</key>
 	<string>BNDL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.9.9</string>
+	<string>2.0.0</string>
 	<key>CFBundleVersion</key>
-	<string>199</string>
+	<string>200</string>
 	<key>NSPrincipalClass</key>
 	<string>OpenClawMarketRainView</string>
 </dict>
