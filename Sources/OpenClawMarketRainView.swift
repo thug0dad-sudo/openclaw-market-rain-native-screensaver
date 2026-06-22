@@ -12,7 +12,7 @@ final class OpenClawMarketRainView: ScreenSaverView {
 
     private var streams: [Stream] = []
     private let tickers = ["NVDA", "BTC", "ETH", "RKLB", "LUNR", "ASTS", "PLTR", "SPY", "QQQ"]
-    private let version = "2.1-NATIVE"
+    private let version = "1.9.8-NATIVE"
     private let font = NSFont.monospacedSystemFont(ofSize: 18, weight: .regular)
     private let hudFont = NSFont.monospacedSystemFont(ofSize: 14, weight: .regular)
 
@@ -80,7 +80,7 @@ final class OpenClawMarketRainView: ScreenSaverView {
 
         for stream in streams {
             for (idx, text) in stream.tokens.enumerated() {
-                let y = stream.y + CGFloat(idx * 22)
+                let y = stream.y - CGFloat(idx * 22)
                 if y < -40 || y > bounds.height + 40 { continue }
 
                 let alpha = max(0.05, 1.0 - CGFloat(idx) / CGFloat(stream.tokens.count))
