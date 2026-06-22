@@ -3,11 +3,19 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>OpenClaw Market Rain Screensaver</title>
-  <link rel="stylesheet" href="styles.css" />
+  <title>OpenClaw Market Rain</title>
+  <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
   <canvas id="rain"></canvas>
-  <script src="app.js"></script>
+
+  <div id="tickerPicker" class="ticker-picker">
+    <label for="tickerInput">Tickers</label>
+    <input id="tickerInput" type="text" spellcheck="false" value="NVDA,BTC,ETH,RKLB,LUNR,ASTS,PLTR,SPY,QQQ" />
+    <button id="tickerApply" type="button">Apply</button>
+    <span id="tickerStatus">fallback ready</span>
+  </div>
+
+  <script src="/app.js"></script>
 </body>
 </html>

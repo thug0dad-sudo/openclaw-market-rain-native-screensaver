@@ -1,126 +1,345 @@
-(() => {
-  const VERSION = "1.6-SAVER";
-  const canvas = document.getElementById("rain");
-  const ctx = canvas.getContext("2d");
+const canvas = document.getElementById("rain");
+const ctx = canvas.getContext("2d");
 
-  let speedMultiplier = 1.0;
-  let oled = false;
-  let streams = [];
-  let frame = 0;
+const VERSION = "1.9-saver-native";
+let oled = false;
+let speedMultiplier = 1.0;
+let quoteStatus = "local fallback";
+let lastQuoteUpdate = null;
 
-  const quotes = ["NVDA", "BTC", "ETH", "RKLB", "LUNR", "ASTS", "PLTR", "SPY", "QQQ"];
-  const fontSize = 18;
-  const rowHeight = 22;
-  const colWidth = 86;
-  const trailLength = 24;
+const QUOTE_RETRY_LIMIT = 3;
+const QUOTE_RETRY_BASE_MS = 1200;
+const QUOTE_FETCH_TIMEOUT_MS = 4500;
+const DEFAULT_SYMBOLS = ["NVDA", "BTC", "ETH", "RKLB", "LUNR", "ASTS", "PLTR", "SPY", "QQQ"];
+const SYMBOL_STORAGE_KEY = "marketRainSelectedSymbols";
+const CONTROL_IDLE_MS = 2600;
+let controlHideTimer = null;
 
-  function token() {
-    const s = quotes[Math.floor(Math.random() * quotes.length)];
-    const r = Math.random();
-    if (r < 0.55) return s;
-    if (r < 0.75) return s + (Math.random() > 0.5 ? "▲" : "▼");
-    if (r < 0.9) return (Math.random() > 0.5 ? "+" : "-") + (Math.random() * 5).toFixed(2) + "%";
-    return "$" + (Math.random() * 500).toFixed(2);
+const fontSize = 18;
+const rowHeight = 22;
+const columnWidth = 92;
+const trailLength = 22;
+
+let selectedSymbols = loadSelectedSymbols();
+
+let quotes = [
+  { symbol: "NVDA", price: 145.23, changePercent: 2.14 },
+  { symbol: "BTC", price: 104250, changePercent: 1.32 },
+  { symbol: "ETH", price: 3520, changePercent: -0.42 },
+  { symbol: "RKLB", price: 22.18, changePercent: 3.01 },
+  { symbol: "LUNR", price: 9.72, changePercent: -1.22 },
+  { symbol: "ASTS", price: 31.64, changePercent: 4.88 },
+  { symbol: "PLTR", price: 142.05, changePercent: 0.74 },
+  { symbol: "SPY", price: 548.66, changePercent: 0.21 },
+  { symbol: "QQQ", price: 481.91, changePercent: 0.35 }
+];
+
+let streams = [];
+
+function normalizeSymbols(text) {
+  const symbols = String(text || "")
+    .split(/[,\s]+/)
+    .map((s) => s.trim().toUpperCase().replace(/[^A-Z0-9.^-]/g, ""))
+    .filter(Boolean);
+
+  return [...new Set(symbols)].slice(0, 20);
+}
+
+function loadSelectedSymbols() {
+  try {
+    const saved = localStorage.getItem(SYMBOL_STORAGE_KEY);
+    const symbols = normalizeSymbols(saved || DEFAULT_SYMBOLS.join(","));
+    return symbols.length ? symbols : DEFAULT_SYMBOLS;
+  } catch {
+    return DEFAULT_SYMBOLS;
   }
+}
 
-  function makeStream(x) {
-    return {
-      x,
-      y: -Math.random() * canvas.height,
-      speed: 1.2 + Math.random() * 2.8,
-      tokens: Array.from({ length: trailLength }, token),
-      drift: Math.random() * 0.6 - 0.3
-    };
+function saveSelectedSymbols(symbols) {
+  try {
+    localStorage.setItem(SYMBOL_STORAGE_KEY, symbols.join(","));
+  } catch {
+    // Screensaver WebView storage can be unavailable; ignore safely.
   }
+}
 
-  function resize() {
-    canvas.width = Math.max(800, window.innerWidth || canvas.clientWidth || 800);
-    canvas.height = Math.max(600, window.innerHeight || canvas.clientHeight || 600);
-    const count = Math.max(12, Math.floor(canvas.width / colWidth));
-    streams = Array.from({ length: count }, (_, i) => makeStream(i * colWidth + 12));
-  }
+function updatePickerStatus(text) {
+  const status = document.getElementById("tickerStatus");
+  if (status) status.textContent = text;
+}
 
-  function drawHud() {
-    ctx.shadowBlur = 0;
-    ctx.font = "14px monospace";
-    ctx.fillStyle = "rgba(0,255,90,0.95)";
-    ctx.fillText(
-      `OpenClaw Market Rain · + Faster · - Slower · 0 Reset · Speed ${speedMultiplier.toFixed(1)}x · Version ${VERSION}`,
-      14,
-      canvas.height - 22
-    );
-  }
+function syncPicker() {
+  const input = document.getElementById("tickerInput");
+  if (input) input.value = selectedSymbols.join(",");
+  updatePickerStatus(quoteStatus);
+}
 
-  function draw() {
-    if (!streams.length) resize();
+function showControls() {
+  const picker = document.getElementById("tickerPicker");
+  if (!picker) return;
 
-    ctx.fillStyle = oled ? "rgba(0,0,0,0.36)" : "rgba(0,0,0,0.18)";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  picker.classList.remove("is-hidden");
 
-    ctx.font = `${fontSize}px monospace`;
-    ctx.textBaseline = "top";
+  clearTimeout(controlHideTimer);
+  controlHideTimer = setTimeout(() => {
+    if (document.activeElement && picker.contains(document.activeElement)) return;
+    picker.classList.add("is-hidden");
+  }, CONTROL_IDLE_MS);
+}
 
-    for (const stream of streams) {
-      stream.y += stream.speed * speedMultiplier;
+function setupControlAutoHide() {
+  const picker = document.getElementById("tickerPicker");
+  if (!picker) return;
 
-      if (stream.y - trailLength * rowHeight > canvas.height) {
-        Object.assign(stream, makeStream(stream.x));
-        stream.y = -Math.random() * 250;
-      }
-
-      if (frame % 4 === 0) {
-        stream.tokens.pop();
-        stream.tokens.unshift(token());
-      }
-
-      for (let i = 0; i < stream.tokens.length; i++) {
-        const y = stream.y - i * rowHeight;
-        if (y < -40 || y > canvas.height + 40) continue;
-
-        const alpha = 1 - i / trailLength;
-        if (i === 0) {
-          ctx.fillStyle = "rgba(230,255,230,0.98)";
-          ctx.shadowColor = "#00ff66";
-          ctx.shadowBlur = 12;
-        } else {
-          ctx.fillStyle = `rgba(0,255,90,${alpha * 0.85})`;
-          ctx.shadowBlur = 0;
-        }
-
-        ctx.fillText(stream.tokens[i], stream.x + Math.sin((frame + i) / 20) * stream.drift, y);
-      }
-    }
-
-    drawHud();
-    frame++;
-  }
-
-  function loop() {
-    draw();
-    requestAnimationFrame(loop);
-  }
-
-  window.__marketRainStart = function () {
-    resize();
-    draw();
-  };
-
-  window.__marketRainFrame = function () {
-    draw();
-  };
-
-  window.__marketRainResize = function () {
-    resize();
-  };
-
-  window.addEventListener("resize", resize);
-  window.addEventListener("keydown", (e) => {
-    if (e.key === "+" || e.key === "=") speedMultiplier = Math.min(5, speedMultiplier + 0.2);
-    if (e.key === "-" || e.key === "_") speedMultiplier = Math.max(0.2, speedMultiplier - 0.2);
-    if (e.key === "0") speedMultiplier = 1.0;
-    if (e.key === "o" || e.key === "O") oled = !oled;
+  ["mousemove", "mousedown", "touchstart", "keydown"].forEach((eventName) => {
+    window.addEventListener(eventName, showControls, { passive: true });
   });
 
-  resize();
-  loop();
-})();
+  picker.addEventListener("mouseenter", showControls);
+  picker.addEventListener("focusin", showControls);
+  picker.addEventListener("focusout", showControls);
+
+  showControls();
+}
+
+function setupTickerPicker() {
+  const input = document.getElementById("tickerInput");
+  const button = document.getElementById("tickerApply");
+
+  if (!input || !button) return;
+
+  const apply = () => {
+    const next = normalizeSymbols(input.value);
+    selectedSymbols = next.length ? next : DEFAULT_SYMBOLS;
+    saveSelectedSymbols(selectedSymbols);
+    quoteStatus = "loading";
+    updatePickerStatus("loading");
+    loadQuotes();
+  };
+
+  button.addEventListener("click", apply);
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") apply();
+  });
+
+  syncPicker();
+}
+
+function formatPrice(n) {
+  if (n >= 1000) return Math.round(n).toLocaleString();
+  return Number(n).toFixed(2);
+}
+
+function randomQuote() {
+  return quotes[Math.floor(Math.random() * quotes.length)];
+}
+
+function makeToken(q) {
+  const arrow = q.changePercent >= 0 ? "▲" : "▼";
+  const r = Math.random();
+
+  if (r < 0.48) return q.symbol;
+  if (r < 0.68) return `${q.symbol}${arrow}`;
+  if (r < 0.86) return `${q.changePercent >= 0 ? "+" : ""}${q.changePercent.toFixed(2)}%`;
+  return `$${formatPrice(q.price)}`;
+}
+
+function makeStream(x) {
+  const quote = randomQuote();
+
+  return {
+    x,
+    y: -Math.random() * canvas.height,
+    speed: 0.7 + Math.random() * 1.4,
+    quote,
+    tokens: Array.from({ length: trailLength }, () => makeToken(quote)),
+    tick: 0,
+    tickEvery: 8 + Math.floor(Math.random() * 14)
+  };
+}
+
+function resetStreams() {
+  const count = Math.max(8, Math.floor(window.innerWidth / columnWidth));
+  streams = Array.from({ length: count }, (_, i) => makeStream(i * columnWidth + 8));
+}
+
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  resetStreams();
+}
+
+function drawStream(stream) {
+  stream.y += stream.speed * speedMultiplier;
+
+  if (stream.y > canvas.height + trailLength * rowHeight) {
+    Object.assign(stream, makeStream(stream.x));
+    stream.y = -Math.random() * 300;
+  }
+
+  stream.tick++;
+  if (stream.tick >= stream.tickEvery) {
+    stream.tick = 0;
+    stream.quote = randomQuote();
+    stream.tokens.pop();
+    stream.tokens.unshift(makeToken(stream.quote));
+  }
+
+  for (let i = 0; i < stream.tokens.length; i++) {
+    const y = stream.y - i * rowHeight;
+    if (y < -40 || y > canvas.height + 40) continue;
+
+    const alpha = 1 - i / trailLength;
+    const positive = stream.quote.changePercent >= 0;
+
+    if (i === 0) {
+      ctx.fillStyle = oled ? "rgba(255,255,255,0.95)" : "rgba(210,255,210,0.95)";
+      ctx.shadowColor = positive ? "#00ff66" : "#ff3355";
+      ctx.shadowBlur = 14;
+    } else {
+      ctx.fillStyle = positive
+        ? `rgba(0,255,90,${alpha * 0.78})`
+        : `rgba(255,50,90,${alpha * 0.68})`;
+      ctx.shadowBlur = 0;
+    }
+
+    ctx.fillText(stream.tokens[i], stream.x, y);
+  }
+
+  ctx.shadowBlur = 0;
+}
+
+function sourceLabel(source) {
+  if (source === "finnhub-live") return "live Finnhub";
+  if (source === "stooq-delayed") return "delayed public";
+  if (source === "mixed") return "mixed";
+  if (source === "fallback-static") return "static fallback";
+  return source || "unknown";
+}
+
+function quoteHudText() {
+  if (!lastQuoteUpdate) return `Quotes ${quoteStatus}`;
+
+  const updated = new Date(lastQuoteUpdate).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+
+  return `Quotes ${quoteStatus} ${updated}`;
+}
+
+function drawHud() {
+  const picker = document.getElementById("tickerPicker");
+  if (picker && picker.classList.contains("is-hidden")) return;
+
+  ctx.font = "14px monospace";
+  ctx.fillStyle = "rgba(0,255,90,0.9)";
+  ctx.fillText(
+    `OpenClaw Market Rain · F Fullscreen · O OLED · + Faster · - Slower · 0 Reset · Speed ${speedMultiplier.toFixed(1)}x · ${quoteHudText()} · ${selectedSymbols.length} tickers · Version ${VERSION}`,
+    14,
+    canvas.height - 18
+  );
+}
+
+function draw() {
+  ctx.fillStyle = oled ? "rgba(0,0,0,0.34)" : "rgba(0,0,0,0.22)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.font = `${fontSize}px monospace`;
+  ctx.textBaseline = "top";
+
+  for (const stream of streams) {
+    drawStream(stream);
+  }
+
+  drawHud();
+  requestAnimationFrame(draw);
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchQuotesWithTimeout() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), QUOTE_FETCH_TIMEOUT_MS);
+  const params = new URLSearchParams({ symbols: selectedSymbols.join(",") });
+  const apiBase = "https://market-rain.vercel.app";
+
+  try {
+    const res = await fetch(`${apiBase}/api/quotes?${params.toString()}`, {
+      cache: "no-store",
+      signal: controller.signal
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function applyQuotePayload(data) {
+  if (!data || !Array.isArray(data.quotes) || !data.quotes.length) {
+    throw new Error("Invalid quote payload");
+  }
+
+  quotes = data.quotes;
+  lastQuoteUpdate = data.updatedAt || new Date().toISOString();
+  quoteStatus = sourceLabel(data.source);
+  updatePickerStatus(`${quoteStatus} · ${quotes.length}/${selectedSymbols.length}`);
+  resetStreams();
+}
+
+async function loadQuotes(attempt = 1) {
+  try {
+    const data = await fetchQuotesWithTimeout();
+    applyQuotePayload(data);
+  } catch (err) {
+    quoteStatus = attempt < QUOTE_RETRY_LIMIT
+      ? `retrying ${attempt}/${QUOTE_RETRY_LIMIT}`
+      : "local fallback";
+
+    updatePickerStatus(quoteStatus);
+    console.warn(`Quote load failed on attempt ${attempt}:`, err);
+
+    if (attempt < QUOTE_RETRY_LIMIT) {
+      const delay = QUOTE_RETRY_BASE_MS * 2 ** (attempt - 1);
+      await sleep(delay);
+      return loadQuotes(attempt + 1);
+    }
+  }
+}
+
+window.addEventListener("resize", resize);
+
+window.addEventListener("keydown", (e) => {
+  if (e.target && ["INPUT", "TEXTAREA"].includes(e.target.tagName)) return;
+
+  if (e.key === "f" || e.key === "F") {
+    document.documentElement.requestFullscreen?.();
+  }
+
+  if (e.key === "o" || e.key === "O") {
+    oled = !oled;
+  }
+
+  if (e.key === "+" || e.key === "=") {
+    speedMultiplier = Math.min(5, speedMultiplier + 0.2);
+  }
+
+  if (e.key === "-" || e.key === "_") {
+    speedMultiplier = Math.max(0.2, speedMultiplier - 0.2);
+  }
+
+  if (e.key === "0") {
+    speedMultiplier = 1.0;
+  }
+});
+
+setupTickerPicker();
+setupControlAutoHide();
+resize();
+loadQuotes();
+setInterval(loadQuotes, 30000);
+draw();
