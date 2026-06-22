@@ -21,3 +21,16 @@ swiftc \
 cp Info.plist "$CONTENTS/Info.plist"
 
 echo "Built: $BUNDLE"
+
+### OpenClaw: package web resources into saver bundle ###
+SAVER_BUNDLE="build/OpenClawMarketRainNative.saver"
+RESOURCE_DEST="$SAVER_BUNDLE/Contents/Resources"
+
+if [ -d "Resources" ] && [ -d "$SAVER_BUNDLE/Contents" ]; then
+  mkdir -p "$RESOURCE_DEST"
+  cp -R Resources/. "$RESOURCE_DEST/"
+  echo "Packaged web resources into: $RESOURCE_DEST"
+else
+  echo "Warning: Resources folder or saver bundle missing; web resources not packaged."
+fi
+
