@@ -36,7 +36,7 @@
         for (int j = 0; j < 24; j++) [tokens addObject:[self token]];
         [self.streams addObject:@{
             @"x": @(i * 86 + 12),
-            @"y": @(-((CGFloat)arc4random_uniform(600))),
+            @"y": @(self.bounds.size.height + arc4random_uniform(600)),
             @"speed": @(((float)arc4random_uniform(240))/100.0 + 1.8),
             @"tokens": tokens
         }.mutableCopy];
@@ -48,11 +48,11 @@
     for (NSMutableDictionary *s in self.streams) {
         CGFloat y = [s[@"y"] doubleValue];
         CGFloat speed = [s[@"speed"] doubleValue];
-        y += speed;
+        y -= speed;
 
         NSMutableArray *tokens = s[@"tokens"];
-        if (y > self.bounds.size.height + tokens.count * 22) {
-            y = -((CGFloat)arc4random_uniform(300));
+        if (y + tokens.count * 22 < 0) {
+            y = self.bounds.size.height + arc4random_uniform(300);
         }
 
         [tokens removeLastObject];
@@ -76,7 +76,7 @@
         NSArray *tokens = s[@"tokens"];
 
         for (NSUInteger i = 0; i < tokens.count; i++) {
-            CGFloat yy = y - i * 22;
+            CGFloat yy = y + i * 22;
             if (yy < -40 || yy > self.bounds.size.height + 40) continue;
 
             CGFloat alpha = MAX(0.05, 1.0 - ((CGFloat)i / tokens.count));
@@ -89,7 +89,7 @@
         }
     }
 
-    NSString *hud = @"OpenClaw Market Rain · Native ObjC Saver · Version 1.9.8";
+    NSString *hud = @"OpenClaw Market Rain · Native ObjC Saver · Version 1.9.9";
     [hud drawAtPoint:NSMakePoint(14, 14)
       withAttributes:@{
         NSFontAttributeName: hudFont,

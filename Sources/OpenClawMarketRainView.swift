@@ -12,7 +12,7 @@ final class OpenClawMarketRainView: ScreenSaverView {
 
     private var streams: [Stream] = []
     private let tickers = ["NVDA", "BTC", "ETH", "RKLB", "LUNR", "ASTS", "PLTR", "SPY", "QQQ"]
-    private let version = "1.9.8-NATIVE"
+    private let version = "1.9.9-NATIVE"
     private let font = NSFont.monospacedSystemFont(ofSize: 18, weight: .regular)
     private let hudFont = NSFont.monospacedSystemFont(ofSize: 14, weight: .regular)
 
@@ -44,7 +44,7 @@ final class OpenClawMarketRainView: ScreenSaverView {
     private func makeStream(x: CGFloat) -> Stream {
         Stream(
             x: x,
-            y: -CGFloat.random(in: 0...max(bounds.height, 600)),
+            y: bounds.height + CGFloat.random(in: 0...600),
             speed: CGFloat.random(in: 1.8...4.2),
             tokens: (0..<24).map { _ in token() }
         )
@@ -60,11 +60,11 @@ final class OpenClawMarketRainView: ScreenSaverView {
         if streams.isEmpty { resetStreams() }
 
         for i in streams.indices {
-            streams[i].y += streams[i].speed
+            streams[i].y -= streams[i].speed
 
-            if streams[i].y > bounds.height + CGFloat(streams[i].tokens.count * 22) {
+            if streams[i].y + CGFloat(streams[i].tokens.count * 22) < 0 {
                 streams[i] = makeStream(x: streams[i].x)
-                streams[i].y = -CGFloat.random(in: 0...250)
+                streams[i].y = bounds.height + CGFloat.random(in: 0...250)
             }
 
             streams[i].tokens.removeLast()
@@ -80,7 +80,7 @@ final class OpenClawMarketRainView: ScreenSaverView {
 
         for stream in streams {
             for (idx, text) in stream.tokens.enumerated() {
-                let y = stream.y - CGFloat(idx * 22)
+                let y = stream.y + CGFloat(idx * 22)
                 if y < -40 || y > bounds.height + 40 { continue }
 
                 let alpha = max(0.05, 1.0 - CGFloat(idx) / CGFloat(stream.tokens.count))
