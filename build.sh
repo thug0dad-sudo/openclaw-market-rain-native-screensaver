@@ -23,7 +23,7 @@ cp Info.plist "$CONTENTS/Info.plist"
 echo "Built: $BUNDLE"
 
 ### OpenClaw: package web resources into saver bundle ###
-SAVER_BUNDLE="build/OpenClawMarketRainNative.saver"
+SAVER_BUNDLE="build/OpenClawMarketRainNative-v191.saver"
 RESOURCE_DEST="$SAVER_BUNDLE/Contents/Resources"
 
 if [ -d "Resources" ] && [ -d "$SAVER_BUNDLE/Contents" ]; then

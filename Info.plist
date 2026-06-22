@@ -1,13 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleExecutable</key><string>OpenClawMarketRainNative</string>
-  <key>CFBundleIdentifier</key><string>com.openclaw.market-rain.screensaver.native.objc</string>
-  <key>CFBundleName</key><string>OpenClawMarketRainNative</string>
-  <key>CFBundlePackageType</key><string>BNDL</string>
-  <key>CFBundleShortVersionString</key><string>3.0</string>
-  <key>CFBundleVersion</key><string>30</string>
-  <key>NSPrincipalClass</key><string>OpenClawMarketRainView</string>
+	<key>CFBundleExecutable</key>
+	<string>OpenClawMarketRainNative</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.openclaw.market-rain.screensaver.native.objc.v191</string>
+	<key>CFBundleName</key>
+	<string>OpenClaw Market Rain 1.9.1</string>
+	<key>CFBundlePackageType</key>
+	<string>BNDL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.9.1</string>
+	<key>CFBundleVersion</key>
+	<string>191</string>
+	<key>NSPrincipalClass</key>
+	<string>OpenClawMarketRainView</string>
 </dict>
 </plist>

@@ -1,7 +1,7 @@
 const canvas = document.getElementById("rain");
 const ctx = canvas.getContext("2d");
 
-const VERSION = "1.9-saver-native";
+const VERSION = "1.9.1-saver-native";
 let oled = false;
 let speedMultiplier = 1.0;
 let quoteStatus = "local fallback";
